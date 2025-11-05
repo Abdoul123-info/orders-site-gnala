@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gnala Cosmetic - Gestion des Commandes</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header avec logo -->
+        <header class="header">
+            <div class="logo-container">
+                <div class="concentric-logo">
+                    <div class="circle-outer"></div>
+                    <div class="circle-middle"></div>
+                    <div class="circle-inner"></div>
+                    <div class="circle-center">
+                        <img src="cercle.png" alt="Gnala Logo" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="logo-text" style="display:none;">g</span>
+                    </div>
+                </div>
+            </div>
+            <h1 class="title">Gnala Cosmetic</h1>
+            <p class="subtitle">Gestion des Commandes</p>
+        </header>
+
+        <!-- Tableau des commandes -->
+        <main class="main-content">
+            <div class="table-container">
+                <div class="table-header">
+                    <h2>Commandes</h2>
+                    <button class="btn-refresh" onclick="loadOrders()">Actualiser</button>
+                </div>
+                
+                <div class="table-wrapper">
+                    <table id="ordersTable" class="orders-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Nom</th>
+                                <th>Téléphone</th>
+                                <th>Email</th>
+                                <th>Adresse</th>
+                                <th>Zone/Secteur</th>
+                                <th>Type Livraison</th>
+                                <th>Articles</th>
+                                <th>Total</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersBody">
+                            <tr>
+                                <td colspan="11" class="no-orders" data-label="">Chargement des commandes...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
