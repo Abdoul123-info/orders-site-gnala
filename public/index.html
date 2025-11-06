@@ -32,6 +32,11 @@
                     <h2>Commandes</h2>
                     <button class="btn-refresh" onclick="loadOrders()">Actualiser</button>
                 </div>
+
+                <!-- Bandeau statistiques -->
+                <div id="statsBar" style="margin: 8px 0; font-size: 14px; color: #155724; background: #d4edda; border: 1px solid #c3e6cb; padding: 8px; border-radius: 6px; display:none">
+                    <span id="statsText"></span>
+                </div>
                 
                 <div class="table-wrapper">
                     <table id="ordersTable" class="orders-table">
@@ -62,6 +67,21 @@
     </div>
 
     <script src="script.js"></script>
+    <script>
+      // Charger les stats et les afficher dans le bandeau
+      async function loadStats() {
+        try {
+          const res = await fetch('/api/stats');
+          const data = await res.json();
+          if (!data || data.mongo === false) return;
+          const text = `Total commandes: ${data.ordersCount || 0} | Taille données (approx): ${data.db?.dataSizeMB ?? 0} Mo | Stockage: ${data.db?.storageSizeMB ?? 0} Mo`;
+          document.getElementById('statsText').textContent = text;
+          document.getElementById('statsBar').style.display = 'block';
+        } catch (e) { /* silencieux */ }
+      }
+      loadStats();
+      setInterval(loadStats, 60000);
+    </script>
 </body>
 </html>
 

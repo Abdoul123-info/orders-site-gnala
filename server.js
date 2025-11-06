@@ -168,6 +168,34 @@ app.get('/healthz', (req, res) => {
   res.json({ ok: true, mongo: mongoReady });
 });
 
+// Statistiques simples: nombre de commandes et taille estimée de la base
+app.get('/api/stats', async (req, res) => {
+  try {
+    if (!mongoReady) return res.json({ mongo: false });
+
+    const ordersCount = await Order.estimatedDocumentCount();
+    // Stats DB (peut nécessiter des droits suffisants)
+    let dbStats = {};
+    try {
+      const admin = mongoose.connection.db; // current db
+      const stats = await admin.stats(1024 * 1024); // valeurs en Mo
+      dbStats = {
+        dataSizeMB: stats?.dataSize || 0,
+        storageSizeMB: stats?.storageSize || 0,
+        collections: stats?.collections || 0,
+        indexes: stats?.indexes || 0,
+      };
+    } catch (e) {
+      dbStats = { note: 'stats non disponibles avec ce rôle', error: e?.message };
+    }
+
+    res.json({ mongo: true, ordersCount, db: dbStats });
+  } catch (e) {
+    console.error('Erreur /api/stats:', e);
+    res.status(500).json({ message: 'Erreur stats' });
+  }
+});
+
 // Route pour la page d'accueil
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
