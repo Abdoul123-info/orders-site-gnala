@@ -147,16 +147,41 @@ let mongoReady = false;
 
 if (!MONGODB_URI) {
   console.warn('⚠️  MONGODB_URI non défini. Les commandes ne seront pas persistées.');
+  console.warn('   Le serveur continuera de fonctionner sans base de données.');
 } else {
+  // Connexion MongoDB avec gestion d'erreur robuste
   mongoose
-    .connect(MONGODB_URI, { dbName: process.env.MONGO_DBNAME || undefined })
+    .connect(MONGODB_URI, { 
+      dbName: process.env.MONGO_DBNAME || undefined,
+      serverSelectionTimeoutMS: 5000, // Timeout de 5 secondes
+      socketTimeoutMS: 45000,
+    })
     .then(() => {
       mongoReady = true;
       console.log('✅ Connecté à MongoDB');
     })
     .catch((err) => {
       console.error('❌ Erreur de connexion MongoDB:', err.message);
+      console.warn('⚠️  Le serveur continuera de fonctionner sans base de données.');
+      console.warn('   Les commandes ne seront pas persistées jusqu\'à ce que MongoDB soit disponible.');
+      mongoReady = false;
     });
+  
+  // Gestion des événements de connexion MongoDB
+  mongoose.connection.on('error', (err) => {
+    console.error('❌ Erreur MongoDB:', err.message);
+    mongoReady = false;
+  });
+  
+  mongoose.connection.on('disconnected', () => {
+    console.warn('⚠️  MongoDB déconnecté');
+    mongoReady = false;
+  });
+  
+  mongoose.connection.on('reconnected', () => {
+    console.log('✅ MongoDB reconnecté');
+    mongoReady = true;
+  });
 }
 
 // Modèle Order (structure flexible pour accepter tout payload actuel)
