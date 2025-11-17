@@ -50,6 +50,17 @@ else {
   }
 }
 
+// Gestion des erreurs non catchées pour éviter les crashes (doit être défini tôt)
+process.on('uncaughtException', (error) => {
+  console.error('❌ Erreur non catchée:', error);
+  // Ne pas faire crasher le serveur, juste logger
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Promise rejetée non gérée:', reason);
+  // Ne pas faire crasher le serveur, juste logger
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -923,20 +934,31 @@ app.get('/', (req, res) => {
 // Cela permet l'accès depuis le réseau local ET depuis Internet si déployé
 const HOST = process.env.HOST || '0.0.0.0';
 
-app.listen(PORT, HOST, () => {
-  console.log(`Serveur orders_site démarré sur le port ${PORT}`);
-  console.log(`Accédez à http://localhost:${PORT} pour voir les commandes`);
-  
-  if (process.env.RAILWAY_ENVIRONMENT || process.env.RENDER) {
-    // Déployé sur Railway ou Render
-    const publicUrl = process.env.PUBLIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN || 'Déployé sur cloud';
-    console.log(`🌐 Serveur accessible publiquement sur: ${publicUrl}`);
-  } else {
-    console.log(`Le serveur écoute sur toutes les interfaces réseau (0.0.0.0)`);
-    console.log(`Les appareils Android peuvent se connecter via l'IP locale de cette machine`);
-    console.log(`💡 Pour un accès public, utilisez ngrok ou déployez sur Railway/Render`);
-  }
-});
+// Démarrer le serveur avec gestion d'erreur
+try {
+  app.listen(PORT, HOST, () => {
+    console.log(`✅ Serveur orders_site démarré sur le port ${PORT}`);
+    console.log(`📡 Accédez à http://localhost:${PORT} pour voir les commandes`);
+    
+    if (process.env.RAILWAY_ENVIRONMENT || process.env.RENDER) {
+      // Déployé sur Railway ou Render
+      const publicUrl = process.env.PUBLIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN || 'Déployé sur cloud';
+      console.log(`🌐 Serveur accessible publiquement sur: ${publicUrl}`);
+    } else {
+      console.log(`🌐 Le serveur écoute sur toutes les interfaces réseau (0.0.0.0)`);
+      console.log(`📱 Les appareils Android peuvent se connecter via l'IP locale de cette machine`);
+      console.log(`💡 Pour un accès public, utilisez ngrok ou déployez sur Railway/Render`);
+    }
+    
+    console.log(`✅ Serveur prêt à recevoir des requêtes`);
+  }).on('error', (error) => {
+    console.error('❌ Erreur lors du démarrage du serveur:', error);
+    process.exit(1);
+  });
+} catch (error) {
+  console.error('❌ Erreur fatale au démarrage:', error);
+  process.exit(1);
+}
 
 
 
