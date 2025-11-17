@@ -7,7 +7,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3000
+      # PORT est défini automatiquement par Render, pas besoin de le spécifier
 
 
