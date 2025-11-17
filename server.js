@@ -1,3 +1,9 @@
+// Log de démarrage immédiat pour diagnostic Render
+console.log('🚀 Démarrage du serveur orders_site...');
+console.log('📦 Node version:', process.version);
+console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
+console.log('🔌 PORT:', process.env.PORT || '3000 (default)');
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -8,8 +14,11 @@ const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 
+console.log('✅ Modules importés avec succès');
+
 // Charger .env en local (sur Render, process.env est déjà fourni)
 try { require('dotenv').config(); } catch (_) {}
+console.log('✅ Configuration chargée');
 
 // Initialiser Firebase Admin SDK
 // Option 1: Utiliser les credentials JSON (recommandé pour production)
