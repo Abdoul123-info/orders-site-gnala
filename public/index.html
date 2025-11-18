@@ -74,7 +74,9 @@
           const res = await fetch('/api/stats');
           const data = await res.json();
           if (!data || data.mongo === false) return;
-          const text = `Total commandes: ${data.ordersCount || 0} | Taille données (approx): ${data.db?.dataSizeMB ?? 0} Mo | Stockage: ${data.db?.storageSizeMB ?? 0} Mo`;
+          const preciseSize = data.ordersCollection?.sizeMB ?? data.db?.dataSizeMB ?? 0;
+          const preciseStorage = data.ordersCollection?.storageSizeMB ?? data.db?.storageSizeMB ?? 0;
+          const text = `Total commandes: ${data.ordersCount || 0} | Collection orders: ${preciseSize} Mo (stockage ${preciseStorage} Mo)`;
           document.getElementById('statsText').textContent = text;
           document.getElementById('statsBar').style.display = 'block';
         } catch (e) { /* silencieux */ }
