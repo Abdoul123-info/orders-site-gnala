@@ -21,19 +21,32 @@ try { require('dotenv').config(); } catch (_) {}
 console.log('✅ Configuration chargée');
 
 // Initialiser Firebase Admin SDK
-// Option 1: Utiliser les credentials JSON (recommandé pour production)
-if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+// Option 1: Utiliser les credentials JSON en base64 (recommandé pour Render/production)
+if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64) {
+  try {
+    const serviceAccountJson = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64, 'base64').toString('utf8');
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('✅ Firebase Admin SDK initialisé avec service account (base64)');
+  } catch (error) {
+    console.error('❌ Erreur initialisation Firebase Admin avec service account base64:', error.message);
+  }
+}
+// Option 2: Utiliser les credentials JSON directement (si pas en base64)
+else if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
   try {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
-    console.log('✅ Firebase Admin SDK initialisé avec service account');
+    console.log('✅ Firebase Admin SDK initialisé avec service account (JSON direct)');
   } catch (error) {
     console.error('❌ Erreur initialisation Firebase Admin avec service account:', error.message);
   }
 } 
-// Option 2: Utiliser les variables d'environnement individuelles
+// Option 3: Utiliser les variables d'environnement individuelles
 else if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
   try {
     admin.initializeApp({
@@ -48,14 +61,14 @@ else if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && 
     console.error('❌ Erreur initialisation Firebase Admin:', error.message);
   }
 } 
-// Option 3: Utiliser Application Default Credentials (pour Google Cloud)
+// Option 4: Utiliser Application Default Credentials (pour Google Cloud)
 else {
   try {
     admin.initializeApp();
     console.log('✅ Firebase Admin SDK initialisé avec Application Default Credentials');
   } catch (error) {
     console.warn('⚠️  Firebase Admin SDK non initialisé. L\'authentification sera désactivée.');
-    console.warn('   Pour activer l\'authentification, configurez FIREBASE_SERVICE_ACCOUNT_KEY ou les variables individuelles.');
+    console.warn('   Pour activer l\'authentification, configurez FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 ou les variables individuelles.');
   }
 }
 
