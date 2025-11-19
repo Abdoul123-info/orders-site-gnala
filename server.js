@@ -182,6 +182,8 @@ app.use(
           "https://securetoken.googleapis.com",
           "https://firestore.googleapis.com",
           "https://www.googleapis.com",
+          "https://www.gstatic.com",
+          "https://www.google-analytics.com",
         ],
       },
     },

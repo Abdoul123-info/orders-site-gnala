@@ -250,15 +250,25 @@ const getStatusLabel = (status) => {
 };
 
 const updateStatus = async (orderId, newStatus) => {
-  if (!ensureAuthenticated()) return;
+  if (!ensureAuthenticated()) {
+    window.alert('Authentification requise. Veuillez vous reconnecter.');
+    return;
+  }
+
   const confirmMessage =
-    newStatus === 'processing' ? 'Confirmez-vous le traitement de cette commande ?' : 'Confirmez-vous l’annulation ?';
+    newStatus === 'processing' ? 'Confirmez-vous le traitement de cette commande ?' : 'Confirmez-vous l'annulation ?';
   if (!window.confirm(confirmMessage)) {
     return;
   }
 
   try {
-    const response = await fetch(`${API_URL}/${orderId}/status`, {
+    // Rafraîchir le token avant la requête
+    await refreshIdToken(true);
+    
+    const url = `${API_URL}/${orderId}/status`;
+    console.log('🔄 Mise à jour statut:', { orderId, newStatus, url });
+    
+    const response = await fetch(url, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -267,15 +277,30 @@ const updateStatus = async (orderId, newStatus) => {
       body: JSON.stringify({ status: newStatus }),
     });
 
+    console.log('📥 Réponse status:', response.status);
+
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const errorText = await response.text();
+      console.error('❌ Erreur serveur:', errorText);
+      let errorMessage = `Erreur ${response.status}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch (e) {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
 
+    const result = await response.json();
+    console.log('✅ Statut mis à jour:', result);
+
+    // Rafraîchir la liste des commandes
     await loadOrders();
     window.alert('Statut mis à jour avec succès.');
   } catch (error) {
-    console.error('Erreur maj statut:', error);
-    window.alert('Erreur lors de la mise à jour du statut.');
+    console.error('❌ Erreur maj statut:', error);
+    window.alert(`Erreur lors de la mise à jour du statut: ${error.message || 'Erreur inconnue'}`);
   }
 };
 
@@ -363,13 +388,21 @@ refreshBtn.addEventListener('click', () => loadOrders());
 ordersBody.addEventListener('click', (event) => {
   const target = event.target.closest('button[data-action]');
   if (!target) return;
+  
+  event.preventDefault();
+  event.stopPropagation();
+  
   const orderId = target.dataset.id;
   const action = target.dataset.action;
+
+  console.log('🔘 Action cliquée:', { action, orderId, target });
 
   if (action === 'view') {
     viewOrder(orderId);
   } else if (action === 'status') {
-    updateStatus(orderId, target.dataset.status);
+    const newStatus = target.dataset.status;
+    console.log('📝 Changement de statut demandé:', { orderId, newStatus });
+    updateStatus(orderId, newStatus);
   }
 });
 
