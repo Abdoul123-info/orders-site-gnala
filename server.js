@@ -175,6 +175,7 @@ app.use(
           "https://fonts.googleapis.com",
         ],
         "img-src": ["'self'", "data:"],
+        "media-src": ["'self'", "data:"],
         "font-src": ["'self'", "https://fonts.gstatic.com"],
         "connect-src": [
           "'self'",
@@ -900,7 +901,17 @@ app.patch('/api/orders/:id/status', verifyFirebaseToken, requireAdmin, async (re
       userAgent: req.get('user-agent') || 'Unknown'
     });
     
-    res.json({ success: true, order: { id: updated.orderId || updated._id.toString(), status: updated.status, receivedAt: updated.receivedAt, ...updated.payload } });
+    // Exclure 'status' du payload pour éviter qu'il écrase le statut réel
+    const { status: _, ...payloadWithoutStatus } = updated.payload || {};
+    res.json({ 
+      success: true, 
+      order: { 
+        id: updated.orderId || updated._id.toString(), 
+        status: updated.status, 
+        receivedAt: updated.receivedAt, 
+        ...payloadWithoutStatus 
+      } 
+    });
   } catch (e) {
     console.error('Erreur maj statut:', e);
     const errorMessage = (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT)
