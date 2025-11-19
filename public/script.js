@@ -211,8 +211,8 @@ const displayOrders = (orders) => {
                   : ''
               }
               ${
-                status !== 'completed' && status !== 'cancelled' && status !== 'delivered'
-                  ? `<button class="btn-action btn-cancel" data-action="status" data-status="cancelled" data-id="${order.id}">Annuler</button>`
+                status !== 'cancelled'
+                  ? `<button class="btn-action btn-cancel" data-action="status" data-status="cancelled" data-id="${order.id}">Rejeter</button>`
                   : ''
               }
             </div>
@@ -281,7 +281,7 @@ const updateStatus = async (orderId, newStatus) => {
     confirmed: 'Confirmez-vous la confirmation de cette commande ?',
     shipped: 'Confirmez-vous l\'expédition de cette commande ?',
     delivered: 'Confirmez-vous la livraison de cette commande ?',
-    cancelled: 'Confirmez-vous l\'annulation de cette commande ?',
+    cancelled: '⚠️ Attention : Voulez-vous vraiment rejeter/annuler cette commande ? Cette action est irréversible.',
   };
   const confirmMessage = confirmMessages[newStatus] || `Confirmez-vous le changement de statut vers "${getStatusLabel(newStatus)}" ?`;
   if (!window.confirm(confirmMessage)) {
