@@ -755,12 +755,17 @@ app.get('/api/orders', verifyFirebaseToken, requireAdmin, async (req, res) => {
     if (!mongoReady) return res.json([]);
     const docs = await Order.find().sort({ createdAt: -1 }).lean();
     res.json(
-      docs.map((d) => ({
-        id: d.orderId || d._id.toString(),
-        status: d.status,
-        receivedAt: d.receivedAt,
-        ...d.payload,
-      }))
+      docs.map((d) => {
+        const { status: payloadStatus, ...restPayload } = d.payload || {};
+        return {
+          id: d.orderId || d._id.toString(),
+          status: d.status, // Le statut de la commande (peut être mis à jour)
+          receivedAt: d.receivedAt,
+          createdAt: d.createdAt,
+          updatedAt: d.updatedAt,
+          ...restPayload, // Le reste du payload sans le status
+        };
+      })
     );
   } catch (e) {
     console.error('Erreur list orders:', e);

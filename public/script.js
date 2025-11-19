@@ -139,6 +139,11 @@ const displayOrders = (orders) => {
     return;
   }
 
+  console.log('📋 Affichage de', orders.length, 'commande(s)');
+  orders.forEach((order, index) => {
+    console.log(`  Commande ${index + 1}: id=${order.id}, status=${order.status}`);
+  });
+
   orders.sort((a, b) => {
     const dateA = new Date(a.createdAt || a.receivedAt || 0);
     const dateB = new Date(b.createdAt || b.receivedAt || 0);
@@ -294,9 +299,12 @@ const updateStatus = async (orderId, newStatus) => {
 
     const result = await response.json();
     console.log('✅ Statut mis à jour:', result);
+    console.log('📋 Nouveau statut de la commande:', result.order?.status);
 
-    // Rafraîchir la liste des commandes
-    await loadOrders();
+    // Rafraîchir la liste des commandes avec token forcé
+    console.log('🔄 Rechargement de la liste des commandes...');
+    await loadOrders(true);
+    console.log('✅ Liste des commandes rechargée');
     window.alert('Statut mis à jour avec succès.');
   } catch (error) {
     console.error('❌ Erreur maj statut:', error);
