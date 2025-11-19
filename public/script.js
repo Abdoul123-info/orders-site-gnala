@@ -256,7 +256,7 @@ const updateStatus = async (orderId, newStatus) => {
   }
 
   const confirmMessage =
-    newStatus === 'processing' ? 'Confirmez-vous le traitement de cette commande ?' : 'Confirmez-vous l'annulation ?';
+    newStatus === 'processing' ? 'Confirmez-vous le traitement de cette commande ?' : 'Confirmez-vous l\'annulation ?';
   if (!window.confirm(confirmMessage)) {
     return;
   }
