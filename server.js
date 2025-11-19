@@ -815,7 +815,14 @@ app.get('/api/orders/:id', verifyFirebaseToken, async (req, res) => {
       }
     }
     
-    return res.json({ id: doc.orderId || doc._id.toString(), status: doc.status, receivedAt: doc.receivedAt, ...doc.payload });
+    // Exclure 'status' du payload pour éviter qu'il écrase le statut réel
+    const { status: _, ...payloadWithoutStatus } = doc.payload || {};
+    return res.json({ 
+      id: doc.orderId || doc._id.toString(), 
+      status: doc.status, // Utiliser le statut réel de la commande
+      receivedAt: doc.receivedAt, 
+      ...payloadWithoutStatus 
+    });
   } catch (e) {
     console.error('Erreur get order:', e);
     const errorMessage = (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT)
@@ -845,14 +852,18 @@ app.get('/api/my-orders', verifyFirebaseToken, async (req, res) => {
       .limit(200)
       .lean();
 
-    const formatted = orders.map((order) => ({
-      id: order.orderId || order._id.toString(),
-      status: order.status,
-      receivedAt: order.receivedAt,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
-      ...order.payload,
-    }));
+    const formatted = orders.map((order) => {
+      // Exclure 'status' du payload pour éviter qu'il écrase le statut réel de la commande
+      const { status: _, ...payloadWithoutStatus } = order.payload || {};
+      return {
+        id: order.orderId || order._id.toString(),
+        status: order.status, // Utiliser le statut réel de la commande (mis à jour dans la DB)
+        receivedAt: order.receivedAt,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        ...payloadWithoutStatus,
+      };
+    });
 
     res.json(formatted);
   } catch (e) {
