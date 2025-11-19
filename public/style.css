@@ -17,6 +17,119 @@ body {
     margin: 0 auto;
 }
 
+.auth-section {
+    margin-bottom: 30px;
+}
+
+.auth-card {
+    background: rgba(255, 255, 255, 0.98);
+    color: #0C4B2E;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.auth-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.auth-header h2 {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.auth-hint {
+    color: rgba(12, 75, 46, 0.7);
+    font-size: 14px;
+}
+
+.auth-status {
+    font-weight: 600;
+    color: #0C4B2E;
+}
+
+.auth-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.auth-input {
+    border: 1px solid rgba(12, 75, 46, 0.2);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    transition: border 0.2s, box-shadow 0.2s;
+}
+
+.auth-input:focus {
+    outline: none;
+    border-color: #0C4B2E;
+    box-shadow: 0 0 0 2px rgba(12, 75, 46, 0.1);
+}
+
+.auth-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.btn-primary,
+.btn-secondary {
+    border: none;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.btn-primary {
+    background: #0C4B2E;
+    color: white;
+    box-shadow: 0 8px 16px rgba(12, 75, 46, 0.2);
+}
+
+.btn-primary:hover {
+    background: #0f5f3b;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: #f3f5f4;
+    color: #0C4B2E;
+    border: 1px solid rgba(12, 75, 46, 0.2);
+}
+
+.btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.auth-error {
+    margin-top: 12px;
+    color: #B91C1C;
+    font-size: 14px;
+    min-height: 20px;
+}
+
 /* Header avec logo */
 .header {
     text-align: center;
@@ -123,6 +236,20 @@ body {
 .table-header h2 {
     color: #0C4B2E;
     font-size: 24px;
+}
+
+.stats-bar {
+    margin: 8px 0;
+    font-size: 14px;
+    color: #155724;
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+.hidden {
+    display: none !important;
 }
 
 .btn-refresh {

@@ -25,16 +25,44 @@
             <p class="subtitle">Gestion des Commandes</p>
         </header>
 
+        <!-- Section de connexion admin -->
+        <section class="auth-section">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <div>
+                        <h2>Connexion administrateur</h2>
+                        <p class="auth-hint">Utilisez votre compte Firebase Admin pour consulter les commandes.</p>
+                    </div>
+                    <p id="authStatus" class="auth-status">Non connecté</p>
+                </div>
+                <form id="loginForm" class="auth-form">
+                    <div class="form-group">
+                        <label for="adminEmail">Email</label>
+                        <input type="email" id="adminEmail" class="auth-input" placeholder="admin@gnala.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="adminPassword">Mot de passe</label>
+                        <input type="password" id="adminPassword" class="auth-input" placeholder="••••••••" required>
+                    </div>
+                    <div class="auth-actions">
+                        <button type="submit" id="loginBtn" class="btn-primary">Se connecter</button>
+                        <button type="button" id="logoutBtn" class="btn-secondary" disabled>Se déconnecter</button>
+                    </div>
+                </form>
+                <p id="authError" class="auth-error"></p>
+            </div>
+        </section>
+
         <!-- Tableau des commandes -->
         <main class="main-content">
             <div class="table-container">
                 <div class="table-header">
                     <h2>Commandes</h2>
-                    <button class="btn-refresh" onclick="loadOrders()">Actualiser</button>
+                    <button class="btn-refresh" id="refreshBtn" type="button">Actualiser</button>
                 </div>
 
                 <!-- Bandeau statistiques -->
-                <div id="statsBar" style="margin: 8px 0; font-size: 14px; color: #155724; background: #d4edda; border: 1px solid #c3e6cb; padding: 8px; border-radius: 6px; display:none">
+                <div id="statsBar" class="stats-bar hidden">
                     <span id="statsText"></span>
                 </div>
                 
@@ -66,24 +94,7 @@
         </main>
     </div>
 
-    <script src="script.js"></script>
-    <script>
-      // Charger les stats et les afficher dans le bandeau
-      async function loadStats() {
-        try {
-          const res = await fetch('/api/stats');
-          const data = await res.json();
-          if (!data || data.mongo === false) return;
-          const preciseSize = data.ordersCollection?.sizeMB ?? data.db?.dataSizeMB ?? 0;
-          const preciseStorage = data.ordersCollection?.storageSizeMB ?? data.db?.storageSizeMB ?? 0;
-          const text = `Total commandes: ${data.ordersCount || 0} | Collection orders: ${preciseSize} Mo (stockage ${preciseStorage} Mo)`;
-          document.getElementById('statsText').textContent = text;
-          document.getElementById('statsBar').style.display = 'block';
-        } catch (e) { /* silencieux */ }
-      }
-      loadStats();
-      setInterval(loadStats, 60000);
-    </script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
 

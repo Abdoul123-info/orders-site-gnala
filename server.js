@@ -141,7 +141,40 @@ const corsOptions = {
 };
 
 // Middleware de sécurité
-app.use(helmet()); // Headers de sécurité HTTP
+const defaultCsp = helmet.contentSecurityPolicy.getDefaultDirectives();
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        ...defaultCsp,
+        "script-src": [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          "blob:",
+          "https://www.gstatic.com",
+          "https://www.googleapis.com",
+        ],
+        "style-src": [
+          "'self'",
+          "'unsafe-inline'",
+          "https://fonts.googleapis.com",
+        ],
+        "img-src": ["'self'", "data:"],
+        "font-src": ["'self'", "https://fonts.gstatic.com"],
+        "connect-src": [
+          "'self'",
+          "https://identitytoolkit.googleapis.com",
+          "https://securetoken.googleapis.com",
+          "https://firestore.googleapis.com",
+          "https://www.googleapis.com",
+        ],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 app.use(cors(corsOptions));
 app.use(bodyParser.json({ limit: '2mb' })); // Limite de taille pour éviter les attaques
 app.use(express.static('public'));
