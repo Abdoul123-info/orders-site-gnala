@@ -196,7 +196,22 @@ const displayOrders = (orders) => {
                   : ''
               }
               ${
-                status !== 'completed' && status !== 'cancelled'
+                status === 'processing'
+                  ? `<button class="btn-action btn-confirm" data-action="status" data-status="confirmed" data-id="${order.id}">Confirmer</button>`
+                  : ''
+              }
+              ${
+                status === 'confirmed'
+                  ? `<button class="btn-action btn-ship" data-action="status" data-status="shipped" data-id="${order.id}">Expédier</button>`
+                  : ''
+              }
+              ${
+                status === 'shipped'
+                  ? `<button class="btn-action btn-deliver" data-action="status" data-status="delivered" data-id="${order.id}">Livrer</button>`
+                  : ''
+              }
+              ${
+                status !== 'completed' && status !== 'cancelled' && status !== 'delivered'
                   ? `<button class="btn-action btn-cancel" data-action="status" data-status="cancelled" data-id="${order.id}">Annuler</button>`
                   : ''
               }
@@ -246,6 +261,7 @@ const getStatusLabel = (status) => {
   const labels = {
     pending: 'En attente',
     processing: 'En traitement',
+    confirmed: 'Confirmée',
     completed: 'Terminée',
     shipped: 'Expédiée',
     delivered: 'Livrée',
@@ -260,8 +276,14 @@ const updateStatus = async (orderId, newStatus) => {
     return;
   }
 
-  const confirmMessage =
-    newStatus === 'processing' ? 'Confirmez-vous le traitement de cette commande ?' : 'Confirmez-vous l\'annulation ?';
+  const confirmMessages = {
+    processing: 'Confirmez-vous le traitement de cette commande ?',
+    confirmed: 'Confirmez-vous la confirmation de cette commande ?',
+    shipped: 'Confirmez-vous l\'expédition de cette commande ?',
+    delivered: 'Confirmez-vous la livraison de cette commande ?',
+    cancelled: 'Confirmez-vous l\'annulation de cette commande ?',
+  };
+  const confirmMessage = confirmMessages[newStatus] || `Confirmez-vous le changement de statut vers "${getStatusLabel(newStatus)}" ?`;
   if (!window.confirm(confirmMessage)) {
     return;
   }
