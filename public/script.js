@@ -212,7 +212,7 @@ const displayOrders = (orders) => {
               }
               ${
                 status !== 'cancelled'
-                  ? `<button class="btn-action btn-cancel" data-action="status" data-status="cancelled" data-id="${order.id}">Rejeter</button>`
+                  ? `<button class="btn-action btn-cancel" data-action="delete" data-id="${order.id}">Rejeter</button>`
                   : ''
               }
             </div>
@@ -334,6 +334,66 @@ const updateStatus = async (orderId, newStatus) => {
   }
 };
 
+const deleteOrder = async (orderId) => {
+  if (!ensureAuthenticated()) {
+    window.alert('Authentification requise. Veuillez vous reconnecter.');
+    return;
+  }
+
+  // Confirmation stricte pour la suppression
+  if (!window.confirm('⚠️ ATTENTION : Voulez-vous vraiment SUPPRIMER DÉFINITIVEMENT cette commande ?\n\nCette action est IRRÉVERSIBLE et la commande sera effacée de la base de données.')) {
+    return;
+  }
+
+  // Double confirmation
+  if (!window.confirm('⚠️ DERNIÈRE CONFIRMATION : La commande sera supprimée définitivement. Continuer ?')) {
+    return;
+  }
+
+  try {
+    // Rafraîchir le token avant la requête
+    await refreshIdToken(true);
+    
+    const url = `${API_URL}/${orderId}`;
+    console.log('🗑️ Suppression commande:', { orderId, url });
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${currentIdToken}`,
+      },
+    });
+
+    console.log('📥 Réponse suppression:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Erreur serveur:', errorText);
+      let errorMessage = `Erreur ${response.status}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch (e) {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    console.log('✅ Commande supprimée:', result);
+
+    // Rafraîchir la liste des commandes avec token forcé
+    console.log('🔄 Rechargement de la liste des commandes...');
+    await loadOrders(true);
+    console.log('✅ Liste des commandes rechargée');
+    window.alert('Commande supprimée définitivement.');
+  } catch (error) {
+    console.error('❌ Erreur suppression:', error);
+    window.alert(`Erreur lors de la suppression: ${error.message || 'Erreur inconnue'}`);
+  }
+};
+
 const viewOrder = async (orderId) => {
   if (!ensureAuthenticated()) return;
 
@@ -429,6 +489,9 @@ ordersBody.addEventListener('click', (event) => {
 
   if (action === 'view') {
     viewOrder(orderId);
+  } else if (action === 'delete') {
+    console.log('🗑️ Suppression demandée:', { orderId });
+    deleteOrder(orderId);
   } else if (action === 'status') {
     const newStatus = target.dataset.status;
     console.log('📝 Changement de statut demandé:', { orderId, newStatus });
