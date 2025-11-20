@@ -172,7 +172,7 @@ const displayOrders = (orders) => {
           <td data-label="Zone/Secteur">${order.zone || 'N/A'}</td>
           <td data-label="Livraison">
             <span class="delivery-badge delivery-${deliveryType}">
-              ${deliveryType === 'express' ? 'Express' : 'Simple'}
+              Livraison
             </span>
           </td>
           <td class="items-list" data-label="Articles">
@@ -417,7 +417,7 @@ Téléphone: ${order.userPhone || 'N/A'}
 Email: ${order.userEmail || 'N/A'}
 Adresse: ${order.address || 'N/A'}
 Zone/Secteur: ${order.zone || 'N/A'}
-Type de livraison: ${order.deliveryType === 'express' ? 'Express' : 'Simple'}
+Type de livraison: Livraison
 Statut: ${getStatusLabel(order.status || 'pending')}
 Date: ${formatDate(order.createdAt || order.receivedAt)}
 
