@@ -995,6 +995,36 @@ app.get('/api/stats', async (req, res) => {
     if (!mongoReady) return res.json({ mongo: false });
 
     const ordersCount = await Order.estimatedDocumentCount();
+    
+    // Calculer le revenu total et les stats par statut
+    let totalRevenue = 0;
+    let activeOrdersCount = 0;
+    let cancelledOrdersCount = 0;
+    
+    try {
+      // Récupérer toutes les commandes pour calculer le revenu
+      const allOrders = await Order.find().lean();
+      
+      allOrders.forEach((order) => {
+        const status = order.status || 'pending';
+        const totalPrice = order.payload?.totalPrice || 0;
+        
+        // Compter les commandes par statut
+        if (status === 'cancelled') {
+          cancelledOrdersCount++;
+        } else {
+          activeOrdersCount++;
+          // Ajouter au revenu seulement les commandes non annulées
+          if (typeof totalPrice === 'number' && totalPrice > 0) {
+            totalRevenue += totalPrice;
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('⚠️  Erreur calcul revenu:', e.message);
+      // Continuer même si le calcul du revenu échoue
+    }
+    
     // Stats DB (peut nécessiter des droits suffisants)
     let dbStats = {};
     let ordersCollStats = {};
@@ -1024,7 +1054,15 @@ app.get('/api/stats', async (req, res) => {
       dbStats = { note: 'stats non disponibles avec ce rôle', error: e?.message };
     }
 
-    res.json({ mongo: true, ordersCount, db: dbStats, ordersCollection: ordersCollStats });
+    res.json({ 
+      mongo: true, 
+      ordersCount, 
+      activeOrdersCount,
+      cancelledOrdersCount,
+      totalRevenue: Math.round(totalRevenue), // Arrondir pour éviter les décimales
+      db: dbStats, 
+      ordersCollection: ordersCollStats 
+    });
   } catch (e) {
     console.error('Erreur /api/stats:', e);
     const errorMessage = (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT)

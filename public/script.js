@@ -84,9 +84,23 @@ const loadStats = async () => {
       statsBar.classList.add('hidden');
       return;
     }
+    
+    // Formater le revenu avec séparateurs de milliers
+    const formatRevenue = (amount) => {
+      return new Intl.NumberFormat('fr-FR', {
+        style: 'decimal',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(amount || 0);
+    };
+    
+    const ordersCount = data.ordersCount || 0;
+    const activeOrdersCount = data.activeOrdersCount || 0;
+    const totalRevenue = data.totalRevenue || 0;
     const preciseSize = data.ordersCollection?.sizeMB ?? data.db?.dataSizeMB ?? 0;
     const preciseStorage = data.ordersCollection?.storageSizeMB ?? data.db?.storageSizeMB ?? 0;
-    const text = `Total commandes: ${data.ordersCount || 0} | Collection orders: ${preciseSize} Mo (stockage ${preciseStorage} Mo)`;
+    
+    const text = `Total commandes: ${ordersCount} (${activeOrdersCount} actives) | Revenu total: ${formatRevenue(totalRevenue)} FCFA | Collection: ${preciseSize.toFixed(2)} Mo`;
     statsText.textContent = text;
     statsBar.classList.remove('hidden');
   } catch (error) {
