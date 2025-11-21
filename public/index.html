@@ -53,8 +53,14 @@
             </div>
         </section>
 
+        <!-- Navigation entre sections -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-section="orders">Commandes</button>
+            <button class="nav-tab" data-section="users">Utilisateurs</button>
+        </nav>
+
         <!-- Tableau des commandes -->
-        <main class="main-content">
+        <main class="main-content" id="ordersSection">
             <div class="table-container">
                 <div class="table-header">
                     <h2>Commandes</h2>
@@ -86,6 +92,37 @@
                         <tbody id="ordersBody">
                             <tr>
                                 <td colspan="11" class="no-orders" data-label="">Chargement des commandes...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- Section Utilisateurs -->
+        <main class="main-content hidden" id="usersSection">
+            <div class="table-container">
+                <div class="table-header">
+                    <h2>Utilisateurs</h2>
+                    <button class="btn-refresh" id="refreshUsersBtn" type="button">Actualiser</button>
+                </div>
+                
+                <div class="table-wrapper">
+                    <table id="usersTable" class="orders-table">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Email</th>
+                                <th>Téléphone</th>
+                                <th>Total Commandes</th>
+                                <th>Prix Total</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersBody">
+                            <tr>
+                                <td colspan="7" class="no-orders" data-label="">Chargement des utilisateurs...</td>
                             </tr>
                         </tbody>
                     </table>

@@ -574,6 +574,34 @@ app.post('/api/orders', orderLimiter, verifyFirebaseToken, validateOrder, async 
     // Si pas d'authentification (mode dev), utiliser le userId du body
     const userId = req.user ? req.user.uid : (req.body.userId || 'anonymous');
 
+    // Vérifier si l'utilisateur est bloqué
+    if (admin.apps.length) {
+      try {
+        const db = admin.firestore();
+        const userDoc = await db.collection('users').doc(userId).get();
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          if (userData.blocked === true) {
+            logSecurityEvent('BLOCKED_USER_ORDER_ATTEMPT', {
+              requestId,
+              clientIp,
+              userId: userId,
+              userAgent,
+              severity: 'MEDIUM'
+            });
+            return res.status(403).json({
+              success: false,
+              error: 'Compte bloqué',
+              message: 'Votre compte a été bloqué. Vous ne pouvez plus passer de commandes.'
+            });
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️  Erreur vérification blocage utilisateur:', error.message);
+        // Continuer même si la vérification échoue (ne pas bloquer les commandes)
+      }
+    }
+
     // Vérifier la cohérence des données
     const calculatedTotalItems = req.body.items.reduce((sum, item) => sum + item.quantity, 0);
     if (calculatedTotalItems !== req.body.totalItems) {
@@ -1074,6 +1102,211 @@ app.get('/api/stats', async (req, res) => {
     const errorMessage = (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT)
       ? 'Erreur stats'
       : e.message;
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
+// Route pour récupérer la liste des utilisateurs avec leurs statistiques
+app.get('/api/users', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  try {
+    if (!admin.apps.length) {
+      return res.status(503).json({ success: false, message: 'Firebase Admin non initialisé' });
+    }
+
+    const db = admin.firestore();
+    const usersSnapshot = await db.collection('users').get();
+    
+    if (!mongoReady) {
+      // Si MongoDB n'est pas disponible, retourner seulement les infos Firestore
+      const users = [];
+      usersSnapshot.forEach((doc) => {
+        const userData = doc.data();
+        users.push({
+          uid: doc.id,
+          name: userData.name || '',
+          email: userData.email || '',
+          phone: userData.phone || '',
+          role: userData.role || 'user',
+          blocked: userData.blocked || false,
+          createdAt: userData.createdAt?.toDate?.() || null,
+          ordersCount: 0,
+          totalRevenue: 0,
+          deliveredOrdersCount: 0,
+          pendingOrdersCount: 0,
+          status: 'Aucune commande'
+        });
+      });
+      return res.json({ success: true, users });
+    }
+
+    // Récupérer toutes les commandes depuis MongoDB
+    const allOrders = await Order.find().lean();
+    
+    // Grouper les commandes par userId
+    const ordersByUser = {};
+    allOrders.forEach((order) => {
+      const orderUserId = order.payload?.userId || order.userId;
+      if (!orderUserId) return;
+      
+      if (!ordersByUser[orderUserId]) {
+        ordersByUser[orderUserId] = [];
+      }
+      ordersByUser[orderUserId].push(order);
+    });
+
+    // Construire la liste des utilisateurs avec leurs stats
+    const users = [];
+    usersSnapshot.forEach((doc) => {
+      const userData = doc.data();
+      const userId = doc.id;
+      const userOrders = ordersByUser[userId] || [];
+      
+      // Calculer les statistiques
+      const ordersCount = userOrders.length;
+      let totalRevenue = 0;
+      let deliveredOrdersCount = 0;
+      let pendingOrdersCount = 0;
+      let processingOrdersCount = 0;
+      let confirmedOrdersCount = 0;
+      let shippedOrdersCount = 0;
+      
+      userOrders.forEach((order) => {
+        const status = order.status || 'pending';
+        const totalPrice = order.payload?.totalPrice || 0;
+        
+        if (status === 'delivered') {
+          deliveredOrdersCount++;
+          if (typeof totalPrice === 'number' && totalPrice > 0) {
+            totalRevenue += totalPrice;
+          }
+        } else if (status === 'pending') {
+          pendingOrdersCount++;
+        } else if (status === 'processing') {
+          processingOrdersCount++;
+        } else if (status === 'confirmed') {
+          confirmedOrdersCount++;
+        } else if (status === 'shipped') {
+          shippedOrdersCount++;
+        }
+      });
+
+      // Déterminer le statut global
+      let status = 'Aucune commande';
+      if (ordersCount > 0) {
+        if (deliveredOrdersCount > 0) {
+          status = `${deliveredOrdersCount} livrée(s)`;
+        } else if (shippedOrdersCount > 0) {
+          status = `${shippedOrdersCount} expédiée(s)`;
+        } else if (confirmedOrdersCount > 0) {
+          status = `${confirmedOrdersCount} confirmée(s)`;
+        } else if (processingOrdersCount > 0) {
+          status = `${processingOrdersCount} en traitement`;
+        } else if (pendingOrdersCount > 0) {
+          status = `${pendingOrdersCount} en attente`;
+        }
+      }
+
+      users.push({
+        uid: userId,
+        name: userData.name || '',
+        email: userData.email || '',
+        phone: userData.phone || '',
+        role: userData.role || 'user',
+        blocked: userData.blocked || false,
+        createdAt: userData.createdAt?.toDate?.() || null,
+        ordersCount,
+        totalRevenue: Math.round(totalRevenue),
+        deliveredOrdersCount,
+        pendingOrdersCount,
+        processingOrdersCount,
+        confirmedOrdersCount,
+        shippedOrdersCount,
+        status
+      });
+    });
+
+    // Trier par nombre de commandes décroissant, puis par nom
+    users.sort((a, b) => {
+      if (b.ordersCount !== a.ordersCount) {
+        return b.ordersCount - a.ordersCount;
+      }
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    res.json({ success: true, users });
+  } catch (error) {
+    console.error('Erreur récupération utilisateurs:', error);
+    const errorMessage = (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT)
+      ? 'Erreur récupération utilisateurs'
+      : error.message;
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
+// Route pour bloquer un utilisateur
+app.patch('/api/users/:userId/block', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  try {
+    if (!admin.apps.length) {
+      return res.status(503).json({ success: false, message: 'Firebase Admin non initialisé' });
+    }
+
+    const { userId } = req.params;
+    const db = admin.firestore();
+    
+    await db.collection('users').doc(userId).update({
+      blocked: true,
+      blockedAt: admin.firestore.FieldValue.serverTimestamp(),
+      blockedBy: req.user.uid
+    });
+
+    logSecurityEvent('USER_BLOCKED', {
+      clientIp: req.ip || req.connection.remoteAddress,
+      adminUserId: req.user.uid,
+      blockedUserId: userId,
+      userAgent: req.get('user-agent') || 'Unknown',
+      severity: 'MEDIUM'
+    });
+
+    res.json({ success: true, message: 'Utilisateur bloqué' });
+  } catch (error) {
+    console.error('Erreur blocage utilisateur:', error);
+    const errorMessage = (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT)
+      ? 'Erreur blocage utilisateur'
+      : error.message;
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
+// Route pour débloquer un utilisateur
+app.patch('/api/users/:userId/unblock', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  try {
+    if (!admin.apps.length) {
+      return res.status(503).json({ success: false, message: 'Firebase Admin non initialisé' });
+    }
+
+    const { userId } = req.params;
+    const db = admin.firestore();
+    
+    await db.collection('users').doc(userId).update({
+      blocked: false,
+      unblockedAt: admin.firestore.FieldValue.serverTimestamp(),
+      unblockedBy: req.user.uid
+    });
+
+    logSecurityEvent('USER_UNBLOCKED', {
+      clientIp: req.ip || req.connection.remoteAddress,
+      adminUserId: req.user.uid,
+      unblockedUserId: userId,
+      userAgent: req.get('user-agent') || 'Unknown',
+      severity: 'MEDIUM'
+    });
+
+    res.json({ success: true, message: 'Utilisateur débloqué' });
+  } catch (error) {
+    console.error('Erreur déblocage utilisateur:', error);
+    const errorMessage = (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT)
+      ? 'Erreur déblocage utilisateur'
+      : error.message;
     res.status(500).json({ success: false, message: errorMessage });
   }
 });

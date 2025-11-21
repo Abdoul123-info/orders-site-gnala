@@ -568,3 +568,191 @@ document.addEventListener('visibilitychange', () => {
 // État initial
 setTableMessage('Connexion requise pour afficher les commandes.');
 loadStats();
+
+// ==================== GESTION DES UTILISATEURS ====================
+
+const usersBody = document.getElementById('usersBody');
+const usersSection = document.getElementById('usersSection');
+const ordersSection = document.getElementById('ordersSection');
+const refreshUsersBtn = document.getElementById('refreshUsersBtn');
+const navTabs = document.querySelectorAll('.nav-tab');
+
+const USERS_API_URL = '/api/users';
+
+// Navigation entre les sections
+navTabs.forEach((tab) => {
+  tab.addEventListener('click', () => {
+    const section = tab.dataset.section;
+    
+    // Mettre à jour les onglets actifs
+    navTabs.forEach((t) => t.classList.remove('active'));
+    tab.classList.add('active');
+    
+    // Afficher/masquer les sections
+    if (section === 'users') {
+      ordersSection.classList.add('hidden');
+      usersSection.classList.remove('hidden');
+      if (auth.currentUser) {
+        loadUsers();
+      }
+    } else {
+      usersSection.classList.add('hidden');
+      ordersSection.classList.remove('hidden');
+    }
+  });
+});
+
+const setUsersMessage = (message) => {
+  if (!usersBody) return;
+  usersBody.innerHTML = `<tr><td colspan="7" class="no-orders" data-label="">${message}</td></tr>`;
+};
+
+const loadUsers = async (forceRefresh = false) => {
+  if (!ensureAuthenticated()) {
+    setUsersMessage('Authentification requise.');
+    return;
+  }
+
+  try {
+    await refreshIdToken(forceRefresh);
+    setUsersMessage('Chargement des utilisateurs...');
+
+    const response = await fetch(USERS_API_URL, {
+      headers: {
+        Authorization: `Bearer ${currentIdToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        await refreshIdToken(true);
+        return loadUsers(true);
+      }
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!data.success || !Array.isArray(data.users)) {
+      throw new Error('Format de réponse invalide');
+    }
+
+    const users = data.users;
+    console.log(`👥 ${users.length} utilisateur(s) chargé(s)`);
+
+    if (users.length === 0) {
+      setUsersMessage('Aucun utilisateur trouvé.');
+      return;
+    }
+
+    renderUsers(users);
+  } catch (error) {
+    console.error('❌ Erreur chargement utilisateurs:', error);
+    setUsersMessage('Erreur lors du chargement des utilisateurs.');
+  }
+};
+
+const renderUsers = (users) => {
+  if (!usersBody) return;
+
+  usersBody.innerHTML = users
+    .map(
+      (user) => `
+    <tr>
+      <td data-label="Nom">${user.name || 'N/A'}</td>
+      <td data-label="Email">${user.email || 'N/A'}</td>
+      <td data-label="Téléphone">${user.phone || 'N/A'}</td>
+      <td data-label="Total Commandes">${user.ordersCount || 0}</td>
+      <td data-label="Prix Total">${formatPrice(user.totalRevenue || 0)} FCFA</td>
+      <td data-label="Statut">
+        <span class="status-badge status-${user.blocked ? 'blocked' : 'active'}">
+          ${user.blocked ? 'Bloqué' : user.status || 'Aucune commande'}
+        </span>
+      </td>
+      <td data-label="Actions">
+        <button 
+          class="btn-action ${user.blocked ? 'btn-unblock' : 'btn-block'}" 
+          data-action="${user.blocked ? 'unblock' : 'block'}" 
+          data-id="${user.uid}"
+          title="${user.blocked ? 'Débloquer' : 'Bloquer'}"
+        >
+          ${user.blocked ? 'Débloquer' : 'Bloquer'}
+        </button>
+      </td>
+    </tr>
+  `
+    )
+    .join('');
+};
+
+const toggleUserBlock = async (userId, shouldBlock) => {
+  if (!ensureAuthenticated()) {
+    window.alert('Authentification requise. Veuillez vous reconnecter.');
+    return;
+  }
+
+  const action = shouldBlock ? 'bloquer' : 'débloquer';
+  const confirmMessage = `Voulez-vous vraiment ${action} cet utilisateur ?`;
+  if (!window.confirm(confirmMessage)) return;
+
+  try {
+    await refreshIdToken(true);
+    const endpoint = shouldBlock ? 'block' : 'unblock';
+    const url = `${USERS_API_URL}/${userId}/${endpoint}`;
+    
+    console.log(`🔄 ${shouldBlock ? 'Blocage' : 'Déblocage'} utilisateur:`, { userId, url });
+    
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${currentIdToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        await refreshIdToken(true);
+        return toggleUserBlock(userId, shouldBlock);
+      }
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log(`✅ Utilisateur ${shouldBlock ? 'bloqué' : 'débloqué'}:`, result);
+    
+    await loadUsers(true);
+    window.alert(`Utilisateur ${shouldBlock ? 'bloqué' : 'débloqué'} avec succès.`);
+  } catch (error) {
+    console.error(`❌ Erreur ${shouldBlock ? 'blocage' : 'déblocage'}:`, error);
+    window.alert(`Erreur lors du ${action}: ${error.message || 'Erreur inconnue'}`);
+  }
+};
+
+// Gestionnaire d'événements pour les boutons d'action des utilisateurs
+if (usersBody) {
+  usersBody.addEventListener('click', (event) => {
+    const target = event.target.closest('button[data-action]');
+    if (!target) return;
+    
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const userId = target.dataset.id;
+    const action = target.dataset.action;
+    
+    console.log('🔘 Action utilisateur cliquée:', { action, userId, target });
+    
+    if (action === 'block') {
+      toggleUserBlock(userId, true);
+    } else if (action === 'unblock') {
+      toggleUserBlock(userId, false);
+    }
+  });
+}
+
+// Bouton de rafraîchissement des utilisateurs
+if (refreshUsersBtn) {
+  refreshUsersBtn.addEventListener('click', () => loadUsers());
+}
+
+// Charger les utilisateurs quand on passe à la section utilisateurs (géré dans le gestionnaire existant)
