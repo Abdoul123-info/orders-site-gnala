@@ -985,6 +985,36 @@ app.delete('/api/orders/:id', verifyFirebaseToken, requireAdmin, async (req, res
   }
 });
 
+// Route pour supprimer toutes les commandes (admin seulement)
+app.delete('/api/orders', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  try {
+    if (!mongoReady) return res.status(503).json({ success: false, message: 'DB indisponible' });
+    
+    const result = await Order.deleteMany({});
+    const deletedCount = result.deletedCount || 0;
+    
+    logSecurityEvent('ALL_ORDERS_DELETED', {
+      clientIp: req.ip || req.connection.remoteAddress,
+      userId: req.user.uid,
+      deletedCount: deletedCount,
+      userAgent: req.get('user-agent') || 'Unknown',
+      severity: 'HIGH'
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Toutes les commandes ont été supprimées`,
+      deletedCount: deletedCount
+    });
+  } catch (e) {
+    console.error('Erreur suppression toutes commandes:', e);
+    const errorMessage = (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT)
+      ? 'Erreur suppression de toutes les commandes'
+      : e.message;
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
 // Export JSON simple pour sauvegarde manuelle (admin seulement)
 app.get('/api/orders-export.json', verifyFirebaseToken, requireAdmin, async (req, res) => {
   try {
@@ -1306,6 +1336,113 @@ app.patch('/api/users/:userId/unblock', verifyFirebaseToken, requireAdmin, async
     console.error('Erreur déblocage utilisateur:', error);
     const errorMessage = (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT)
       ? 'Erreur déblocage utilisateur'
+      : error.message;
+    res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
+// Route pour supprimer un utilisateur complètement
+app.delete('/api/users/:userId', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  try {
+    if (!admin.apps.length) {
+      return res.status(503).json({ success: false, message: 'Firebase Admin non initialisé' });
+    }
+
+    const { userId } = req.params;
+    
+    // Empêcher la suppression de son propre compte
+    if (req.user.uid === userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Vous ne pouvez pas supprimer votre propre compte' 
+      });
+    }
+
+    const db = admin.firestore();
+    
+    // Vérifier que l'utilisateur existe
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Utilisateur non trouvé' 
+      });
+    }
+
+    const userData = userDoc.data();
+    
+    // Supprimer l'utilisateur de Firebase Auth
+    try {
+      await admin.auth().deleteUser(userId);
+      console.log(`✅ Utilisateur ${userId} supprimé de Firebase Auth`);
+    } catch (authError) {
+      console.warn(`⚠️  Erreur suppression Firebase Auth pour ${userId}:`, authError.message);
+      // Continuer même si la suppression Auth échoue (l'utilisateur peut ne plus exister)
+    }
+
+    // Supprimer le document utilisateur de Firestore
+    await db.collection('users').doc(userId).delete();
+    console.log(`✅ Document utilisateur ${userId} supprimé de Firestore`);
+
+    // Supprimer les favoris de l'utilisateur
+    try {
+      const favoritesRef = db.collection('users').doc(userId).collection('favorites');
+      const favoritesSnapshot = await favoritesRef.get();
+      const batch = db.batch();
+      favoritesSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+      console.log(`✅ ${favoritesSnapshot.docs.length} favori(s) supprimé(s) pour ${userId}`);
+    } catch (favoritesError) {
+      console.warn(`⚠️  Erreur suppression favoris pour ${userId}:`, favoritesError.message);
+    }
+
+    // Supprimer le numéro de téléphone de la collection phone_numbers si présent
+    try {
+      if (userData.phoneDigits) {
+        const phoneDoc = await db.collection('phone_numbers').doc(userData.phoneDigits).get();
+        if (phoneDoc.exists && phoneDoc.data()?.uid === userId) {
+          await db.collection('phone_numbers').doc(userData.phoneDigits).delete();
+          console.log(`✅ Numéro de téléphone supprimé pour ${userId}`);
+        }
+      }
+    } catch (phoneError) {
+      console.warn(`⚠️  Erreur suppression numéro téléphone pour ${userId}:`, phoneError.message);
+    }
+
+    // Note: Les commandes MongoDB ne sont pas supprimées pour garder l'historique
+    // Si vous voulez supprimer les commandes aussi, décommentez le code ci-dessous:
+    /*
+    if (mongoReady) {
+      try {
+        const deletedOrders = await Order.deleteMany({ 
+          $or: [
+            { 'payload.userId': userId },
+            { userId: userId }
+          ]
+        });
+        console.log(`✅ ${deletedOrders.deletedCount} commande(s) supprimée(s) pour ${userId}`);
+      } catch (ordersError) {
+        console.warn(`⚠️  Erreur suppression commandes pour ${userId}:`, ordersError.message);
+      }
+    }
+    */
+
+    logSecurityEvent('USER_DELETED', {
+      clientIp: req.ip || req.connection.remoteAddress,
+      adminUserId: req.user.uid,
+      deletedUserId: userId,
+      deletedUserEmail: userData.email || 'N/A',
+      userAgent: req.get('user-agent') || 'Unknown',
+      severity: 'HIGH'
+    });
+
+    res.json({ success: true, message: 'Utilisateur supprimé avec succès' });
+  } catch (error) {
+    console.error('Erreur suppression utilisateur:', error);
+    const errorMessage = (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT)
+      ? 'Erreur suppression utilisateur'
       : error.message;
     res.status(500).json({ success: false, message: errorMessage });
   }

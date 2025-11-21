@@ -238,6 +238,32 @@ body {
     font-size: 24px;
 }
 
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.btn-delete-all {
+    background: #DC2626;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-delete-all:hover {
+    background: #B91C1C;
+}
+
+.btn-delete-all:active {
+    background: #991B1B;
+}
+
 .stats-bar {
     margin: 8px 0;
     font-size: 14px;
@@ -479,6 +505,15 @@ body {
 
 .btn-unblock:hover {
     background: #16A34A;
+}
+
+.btn-delete {
+    background: #DC2626;
+    color: white;
+}
+
+.btn-delete:hover {
+    background: #B91C1C;
 }
 
 /* Items list */

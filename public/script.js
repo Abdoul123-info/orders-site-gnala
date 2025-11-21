@@ -227,9 +227,12 @@ const displayOrders = (orders) => {
               }
               ${
                 status !== 'cancelled'
-                  ? `<button class="btn-action btn-cancel" data-action="delete" data-id="${order.id}">Rejeter</button>`
+                  ? `<button class="btn-action btn-cancel" data-action="reject" data-id="${order.id}">Rejeter</button>`
                   : ''
               }
+              <button class="btn-action btn-delete" data-action="delete" data-id="${order.id}" title="Supprimer définitivement">
+                Supprimer
+              </button>
             </div>
           </td>
         </tr>
@@ -349,6 +352,24 @@ const updateStatus = async (orderId, newStatus) => {
   }
 };
 
+const rejectOrder = async (orderId) => {
+  if (!ensureAuthenticated()) {
+    window.alert('Authentification requise. Veuillez vous reconnecter.');
+    return;
+  }
+
+  if (!window.confirm('Voulez-vous vraiment rejeter cette commande ?\n\nLa commande sera marquée comme annulée.')) {
+    return;
+  }
+
+  try {
+    await updateStatus(orderId, 'cancelled');
+  } catch (error) {
+    console.error('❌ Erreur rejet:', error);
+    window.alert(`Erreur lors du rejet: ${error.message || 'Erreur inconnue'}`);
+  }
+};
+
 const deleteOrder = async (orderId) => {
   if (!ensureAuthenticated()) {
     window.alert('Authentification requise. Veuillez vous reconnecter.');
@@ -405,6 +426,68 @@ const deleteOrder = async (orderId) => {
     window.alert('Commande supprimée définitivement.');
   } catch (error) {
     console.error('❌ Erreur suppression:', error);
+    window.alert(`Erreur lors de la suppression: ${error.message || 'Erreur inconnue'}`);
+  }
+};
+
+const deleteAllOrders = async () => {
+  if (!ensureAuthenticated()) {
+    window.alert('Authentification requise. Veuillez vous reconnecter.');
+    return;
+  }
+
+  // Confirmation stricte pour la suppression
+  const confirmMessage1 = '⚠️ ATTENTION : Voulez-vous vraiment SUPPRIMER DÉFINITIVEMENT TOUTES LES COMMANDES ?\n\nCette action est IRRÉVERSIBLE et toutes les commandes seront effacées de la base de données.';
+  if (!window.confirm(confirmMessage1)) {
+    return;
+  }
+
+  // Double confirmation
+  const confirmMessage2 = '⚠️ DERNIÈRE CONFIRMATION : TOUTES les commandes seront supprimées définitivement.\n\nCette action ne peut pas être annulée. Continuer ?';
+  if (!window.confirm(confirmMessage2)) {
+    return;
+  }
+
+  try {
+    // Rafraîchir le token avant la requête
+    await refreshIdToken(true);
+    
+    const url = API_URL;
+    console.log('🗑️ Suppression toutes les commandes:', { url });
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${currentIdToken}`,
+      },
+    });
+
+    console.log('📥 Réponse suppression:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Erreur serveur:', errorText);
+      let errorMessage = `Erreur ${response.status}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch (e) {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    console.log('✅ Toutes les commandes supprimées:', result);
+
+    // Rafraîchir la liste des commandes avec token forcé
+    console.log('🔄 Rechargement de la liste des commandes...');
+    await loadOrders(true);
+    console.log('✅ Liste des commandes rechargée');
+    window.alert(`Toutes les commandes ont été supprimées (${result.deletedCount || 0} commande(s)).`);
+  } catch (error) {
+    console.error('❌ Erreur suppression toutes commandes:', error);
     window.alert(`Erreur lors de la suppression: ${error.message || 'Erreur inconnue'}`);
   }
 };
@@ -490,6 +573,13 @@ logoutBtn.addEventListener('click', async () => {
 
 refreshBtn.addEventListener('click', () => loadOrders());
 
+const deleteAllBtn = document.getElementById('deleteAllBtn');
+if (deleteAllBtn) {
+  deleteAllBtn.addEventListener('click', () => {
+    deleteAllOrders();
+  });
+}
+
 ordersBody.addEventListener('click', (event) => {
   const target = event.target.closest('button[data-action]');
   if (!target) return;
@@ -507,6 +597,9 @@ ordersBody.addEventListener('click', (event) => {
   } else if (action === 'delete') {
     console.log('🗑️ Suppression demandée:', { orderId });
     deleteOrder(orderId);
+  } else if (action === 'reject') {
+    console.log('❌ Rejet demandé:', { orderId });
+    rejectOrder(orderId);
   } else if (action === 'status') {
     const newStatus = target.dataset.status;
     console.log('📝 Changement de statut demandé:', { orderId, newStatus });
@@ -669,14 +762,24 @@ const renderUsers = (users) => {
         </span>
       </td>
       <td data-label="Actions">
-        <button 
-          class="btn-action ${user.blocked ? 'btn-unblock' : 'btn-block'}" 
-          data-action="${user.blocked ? 'unblock' : 'block'}" 
-          data-id="${user.uid}"
-          title="${user.blocked ? 'Débloquer' : 'Bloquer'}"
-        >
-          ${user.blocked ? 'Débloquer' : 'Bloquer'}
-        </button>
+        <div class="action-buttons">
+          <button 
+            class="btn-action ${user.blocked ? 'btn-unblock' : 'btn-block'}" 
+            data-action="${user.blocked ? 'unblock' : 'block'}" 
+            data-id="${user.uid}"
+            title="${user.blocked ? 'Débloquer' : 'Bloquer'}"
+          >
+            ${user.blocked ? 'Débloquer' : 'Bloquer'}
+          </button>
+          <button 
+            class="btn-action btn-delete" 
+            data-action="delete" 
+            data-id="${user.uid}"
+            title="Supprimer définitivement"
+          >
+            Supprimer
+          </button>
+        </div>
       </td>
     </tr>
   `
@@ -728,6 +831,50 @@ const toggleUserBlock = async (userId, shouldBlock) => {
   }
 };
 
+const deleteUser = async (userId) => {
+  if (!ensureAuthenticated()) {
+    window.alert('Authentification requise. Veuillez vous reconnecter.');
+    return;
+  }
+
+  const confirmMessage1 = '⚠️ ATTENTION : Voulez-vous vraiment SUPPRIMER DÉFINITIVEMENT cet utilisateur ?\n\nCette action est IRRÉVERSIBLE et supprimera :\n• Le compte Firebase Auth\n• Les données Firestore\n• Les favoris\n• Le numéro de téléphone';
+  if (!window.confirm(confirmMessage1)) return;
+
+  const confirmMessage2 = '⚠️ DERNIÈRE CONFIRMATION : L\'utilisateur sera supprimé définitivement.\n\nCette action ne peut pas être annulée.';
+  if (!window.confirm(confirmMessage2)) return;
+
+  try {
+    await refreshIdToken(true);
+    const url = `${USERS_API_URL}/${userId}`;
+    console.log('🗑️ Suppression utilisateur:', { userId, url });
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${currentIdToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        await refreshIdToken(true);
+        return deleteUser(userId);
+      }
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('✅ Utilisateur supprimé:', result);
+    
+    await loadUsers(true);
+    window.alert('Utilisateur supprimé avec succès.');
+  } catch (error) {
+    console.error('❌ Erreur suppression utilisateur:', error);
+    window.alert(`Erreur lors de la suppression: ${error.message || 'Erreur inconnue'}`);
+  }
+};
+
 // Gestionnaire d'événements pour les boutons d'action des utilisateurs
 if (usersBody) {
   usersBody.addEventListener('click', (event) => {
@@ -746,6 +893,8 @@ if (usersBody) {
       toggleUserBlock(userId, true);
     } else if (action === 'unblock') {
       toggleUserBlock(userId, false);
+    } else if (action === 'delete') {
+      deleteUser(userId);
     }
   });
 }
