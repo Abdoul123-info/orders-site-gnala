@@ -96,11 +96,12 @@ const loadStats = async () => {
     
     const ordersCount = data.ordersCount || 0;
     const activeOrdersCount = data.activeOrdersCount || 0;
+    const deliveredOrdersCount = data.deliveredOrdersCount || 0;
     const totalRevenue = data.totalRevenue || 0;
     const preciseSize = data.ordersCollection?.sizeMB ?? data.db?.dataSizeMB ?? 0;
     const preciseStorage = data.ordersCollection?.storageSizeMB ?? data.db?.storageSizeMB ?? 0;
     
-    const text = `Total commandes: ${ordersCount} (${activeOrdersCount} actives) | Revenu total: ${formatRevenue(totalRevenue)} FCFA | Collection: ${preciseSize.toFixed(2)} Mo`;
+    const text = `Total commandes: ${ordersCount} (${activeOrdersCount} actives, ${deliveredOrdersCount} livrées) | Revenu total (livrées uniquement): ${formatRevenue(totalRevenue)} FCFA | Collection: ${preciseSize.toFixed(2)} Mo`;
     statsText.textContent = text;
     statsBar.classList.remove('hidden');
   } catch (error) {

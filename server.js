@@ -1000,6 +1000,7 @@ app.get('/api/stats', async (req, res) => {
     let totalRevenue = 0;
     let activeOrdersCount = 0;
     let cancelledOrdersCount = 0;
+    let deliveredOrdersCount = 0;
     
     try {
       // Récupérer toutes les commandes pour calculer le revenu
@@ -1014,9 +1015,13 @@ app.get('/api/stats', async (req, res) => {
           cancelledOrdersCount++;
         } else {
           activeOrdersCount++;
-          // Ajouter au revenu seulement les commandes non annulées
-          if (typeof totalPrice === 'number' && totalPrice > 0) {
-            totalRevenue += totalPrice;
+          
+          // Ajouter au revenu SEULEMENT les commandes livrées (delivered)
+          if (status === 'delivered') {
+            deliveredOrdersCount++;
+            if (typeof totalPrice === 'number' && totalPrice > 0) {
+              totalRevenue += totalPrice;
+            }
           }
         }
       });
@@ -1059,7 +1064,8 @@ app.get('/api/stats', async (req, res) => {
       ordersCount, 
       activeOrdersCount,
       cancelledOrdersCount,
-      totalRevenue: Math.round(totalRevenue), // Arrondir pour éviter les décimales
+      deliveredOrdersCount,
+      totalRevenue: Math.round(totalRevenue), // Arrondir pour éviter les décimales (seulement commandes livrées)
       db: dbStats, 
       ordersCollection: ordersCollStats 
     });
